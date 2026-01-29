@@ -460,9 +460,9 @@ The application does not use custom API routes. All data operations go directly 
 <img width="1919" height="1106" alt="image" src="https://github.com/user-attachments/assets/cd57055f-ffcf-4f9a-a70f-d04323be28bd" />
 
 ### Video Demo
-<video src="https://share.zight.com/Apu22YBm" width="100%" controls autoplay loop muted>
-  Your browser does not support the video tag.
-</video>
+**Watch the demo:** [https://share.zight.com/Apu22YBm](https://share.zight.com/Apu22YBm)
+
+![Demo Preview](https://img.shields.io/badge/Click%20to%20watch-Demo%20Video-success?style=flat-square&logo=youtube)
 
 **Demo Flow:**
 
