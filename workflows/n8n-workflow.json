@@ -1,0 +1,224 @@
+{
+  "name": "Outbound Tech Test",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Classify this feedback:\n\nTitle: {{ $json.body.title }}\nDescription: {{ $json.body.description }}\n\nReturn only JSON: {\"category\": \"...\", \"priority\": \"...\"}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are a feedback classification system. Analyze customer feedback and return ONLY a JSON object with no additional text.  Rules: - If feedback mentions: urgent, broken, error, crash, not working, bug, failed → Category: \"Bug\", Priority: \"High\" - If feedback mentions: feature, suggestion, enhancement, would like, request → Category: \"Feature Request\", Priority: \"Low\" - If feedback mentions: slow, lag, performance, speed → Category: \"Performance\", Priority: \"Medium\" - Otherwise → Category: \"General\", Priority: \"Low\"  Return ONLY this JSON format with no markdown, no code blocks, no explanations: {\"category\": \"Bug\", \"priority\": \"High\"}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        416,
+        0
+      ],
+      "id": "e08f7418-44e7-48e2-a507-9a077b5c3aa9",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        400,
+        208
+      ],
+      "id": "b93c94ea-42a5-4618-8916-4cd3b13cabc1",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "eUwr4GuMB80R5ErR",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "feedback",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').item.json.body.id }}"
+            },
+            {
+              "keyName": "user_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Webhook').item.json.body.user_id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "category",
+              "fieldValue": "={{ $json.category }}"
+            },
+            {
+              "fieldId": "priority",
+              "fieldValue": "={{ $json.priority }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "Processed"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        976,
+        0
+      ],
+      "id": "078c3422-fbf6-4018-9f56-fae91ef10acd",
+      "name": "Update a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "kQn75TEXgCq0idwC",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "7c0fa7bf-ac59-48a8-b13d-7aeb851f614a",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const feedbackData = $input.first().json; // webhook node\nconst aiResponse = $input.last().json; // llm node\n\nconsole.log('Feedback Data:', feedbackData);\nconsole.log('AI Response:', aiResponse);\n\n// extract ai message\nlet aiMessage = '';\nif (aiResponse.text) {\n  aiMessage = aiResponse.text;\n} else if (aiResponse.message) {\n  aiMessage = aiResponse.message;\n} else if (aiResponse.output) {\n  aiMessage = aiResponse.output;\n} else {\n  // Fallback option\n  aiMessage = JSON.stringify(aiResponse);\n}\n\nconsole.log('AI Message (raw):', aiMessage);\n\n// init bang\nlet classification = {\n  category: 'General',\n  priority: 'Low'\n};\n\ntry {\n  // Clean the message - remove markdown, extra quotes, escape characters\n  let cleanMessage = aiMessage\n    .replace(/```json\\n/g, '')\n    .replace(/```\\n/g, '')\n    .replace(/```/g, '')\n    .replace(/\\\\\"/g, '\"') \n    .replace(/^[\"']|[\"']$/g, '')  \n    .trim();\n  \n  console.log('Cleaned message:', cleanMessage);\n  \n  // Try to parse as JSON\n  const parsed = JSON.parse(cleanMessage);\n  \n  if (parsed.category && parsed.priority) {\n    classification.category = parsed.category;\n    classification.priority = parsed.priority;\n  }\n  \n  console.log('Successfully parsed:', classification);\n  \n} catch (error) {\n  console.log('JSON parse failed, using fallback keyword detection');\n  \n  const textLower = (feedbackData.title + ' ' + feedbackData.description).toLowerCase();\n  \n  const bugKeywords = ['urgent', 'broken', 'error', 'crash', 'bug', 'not working', 'failed'];\n  const featureKeywords = ['feature', 'enhancement', 'suggestion', 'would like', 'request'];\n  \n  if (bugKeywords.some(kw => textLower.includes(kw))) {\n    classification.category = 'Bug';\n    classification.priority = 'High';\n  } else if (featureKeywords.some(kw => textLower.includes(kw))) {\n    classification.category = 'Feature Request';\n    classification.priority = 'Low';\n  } else {\n    classification.category = 'General';\n    classification.priority = 'Low';\n  }\n  \n  console.log('Fallback classification:', classification);\n}\n\n// Return the final result for Supabase\nreturn {\n  id: feedbackData.id,\n  category: classification.category,\n  priority: classification.priority,\n  status: 'Processed',\n  ai_raw_response: aiMessage,\n  processed_at: new Date().toISOString(),\n  fallback_used: false\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        0
+      ],
+      "id": "9eb9ca6f-bf0e-4516-98ce-9c07155b7695",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "outbound-n8n",
+        "authentication": "basicAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        160,
+        0
+      ],
+      "id": "d17be0fe-dc58-4b84-bbee-c08ae510bec0",
+      "name": "Webhook",
+      "webhookId": "5d123ab6-6bac-4db7-8e94-e472d704700d",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "ZNHMzDkquBROaFoK",
+          "name": "techtest"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a row": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": -1
+  },
+  "versionId": "f0b6c62d-2a6a-4294-99b9-2e0e37781f4a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "aa834e58d9c6927d546b0d7cf7ccfd4a8fdfe4563b324897f9f9b0b872ec3490"
+  },
+  "id": "9jK5l-NIrD_mSGmUSNwzA",
+  "tags": []
+}
