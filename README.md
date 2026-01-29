@@ -449,6 +449,8 @@ The application does not use custom API routes. All data operations go directly 
 ## Demo
 
 ### Screenshots
+**Workflow:**
+<img width="1811" height="684" alt="image" src="https://github.com/user-attachments/assets/c0564576-1d8e-4a58-ad50-362750022d4c" />
 
 **Login Page:**
 <img width="1911" height="1109" alt="image" src="https://github.com/user-attachments/assets/c90ed2bf-ed94-40ff-a33b-bc9f2214dd6b" />
