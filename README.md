@@ -451,23 +451,18 @@ The application does not use custom API routes. All data operations go directly 
 ### Screenshots
 
 **Login Page:**
-[Insert screenshot]
+<img width="1911" height="1109" alt="image" src="https://github.com/user-attachments/assets/c90ed2bf-ed94-40ff-a33b-bc9f2214dd6b" />
 
-**Dashboard - Submit Feedback:**
-[Insert screenshot]
-
-**Dashboard - Feedback List with Status:**
-[Insert screenshot]
+**Dashboard:**
+<img width="1916" height="1113" alt="image" src="https://github.com/user-attachments/assets/6e815954-4103-49c9-bc79-bb224c89ad46" />
 
 **Debug Modal:**
-[Insert screenshot]
-
-**Console Logs:**
-[Insert screenshot showing professional logging]
+<img width="1919" height="1106" alt="image" src="https://github.com/user-attachments/assets/cd57055f-ffcf-4f9a-a70f-d04323be28bd" />
 
 ### Video Demo
-
-[Optional: Insert Loom/YouTube link showing the real-time update in action]
+<video src="https://share.zight.com/Apu22YBm" width="100%" controls autoplay loop muted>
+  Your browser does not support the video tag.
+</video>
 
 **Demo Flow:**
 
